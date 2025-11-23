@@ -347,7 +347,7 @@ def thinker_loop(seed_user: str, iterations: int = 10):
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + last_n_msgs(5)
 
     while True:
-        resp = local_call_model(messages)
+        resp = cerebras_call_model(messages)
         print(json.dumps(resp, indent=2, ensure_ascii=False))
         choice = resp["choices"][0]["message"]
         content = choice.get("content", "") or ""
