@@ -283,10 +283,10 @@ def local_call_model(
 
 from cerebras.cloud.sdk import Cerebras
 
-cliented = Cerebras(api_key=CEREBRAS_KEY)
+cerebras_client = Cerebras(api_key=CEREBRAS_KEY)
 from groq import Groq
 
-client = Groq(
+groq_client = Groq(
     api_key=GROQ_KEY,
 )
 
@@ -300,7 +300,7 @@ def cerebras_call_model(
     model: str = MODEL,
 ) -> Dict[str, any]:
 
-    completion = client.chat.completions.create(
+    completion = cerebras_client.chat.completions.create(
         messages=messages,
         model=model,
         max_completion_tokens=2048,
