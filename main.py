@@ -383,7 +383,7 @@ def thinker_loop(seed_user: str, iterations: int = 10):
                 }
             )
             res = call_local_function(fname, args)
-            memory.append({"role": "function", "name": fname, "content": res})
+            memory.append({"role": "tool", "name": fname, "content": res})
             messages = [{"role": "system", "content": SYSTEM_PROMPT}] + last_n_msgs(5)
             continue
 
@@ -423,8 +423,7 @@ def thinker_loop(seed_user: str, iterations: int = 10):
                         "param"
                     )
                 res = call_local_function(action, args)
-                memory.append({"role": "function", "name": action, "content": res})
-            # подготовим next user message
+                memory.append({"role": "tool", "name": action, "content": res})
             next_q = (
                 parsed.get("next_q") or "Continue generating a short note and question."
             )
@@ -432,7 +431,6 @@ def thinker_loop(seed_user: str, iterations: int = 10):
             messages = [{"role": "system", "content": SYSTEM_PROMPT}] + last_n_msgs(5)
             continue
 
-        # 3) Ничего не распарсили — сохраняем assistant content и просим продолжать
         memory.append({"role": "assistant", "content": content or "<no content>"})
         memory.append(
             {
