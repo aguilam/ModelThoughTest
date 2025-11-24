@@ -310,8 +310,10 @@ def cerebras_call_model(
         top_p=1,
         stream=False,
     )
-    completion.raise_for_status()
-    return completion.json()
+    completion_json = completion.model_json_dump()
+    if completion_json.status_code != 200:
+        raise ValueError(f"API error: {completion_json.status_code}")
+    return completion_json
 
 
 def safe_parse_json_line(text: str):
