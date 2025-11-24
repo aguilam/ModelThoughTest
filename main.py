@@ -358,13 +358,46 @@ def call_local_function(fname: str, args: Dict):
         return fetch_news(args.get("news_query", ""))
     return f"unknown_function:{fname}"
 
+def normalize_messages_for_api(msgs: List[Dict]) -> List[Dict]:
+    out = []
+    for m in msgs:
+        mm = dict(m) 
+        role = mm.get("role", "")
+        if role == "function":
+            mm["role"] = "tool"
+        if mm.get("role") not in {"system", "user", "assistant", "tool"}:
+            mm["role"] = "assistant"
+
+        if mm["role"] == "tool":
+            mm["content"] = str(mm.get("content", "") or "")
+
+            tool_name = None
+            if isinstance(mm.get("tool"), dict):
+                tool_name = mm["tool"].get("name")
+            if not tool_name:
+                tool_name = mm.pop("name", None) or mm.get("name")
+
+            if not tool_name:
+                tool_name = "tool"
+
+            existing_id = None
+            if isinstance(mm.get("tool"), dict):
+                existing_id = mm["tool"].get("tool_call_id")
+            tool_call_id = existing_id or str(uuid.uuid4())
+
+            mm["tool"] = {"name": str(tool_name), "tool_call_id": tool_call_id}
+            mm.pop("name", None)
+
+        out.append(mm)
+    return out
 
 def thinker_loop(seed_user: str, iterations: int = 10):
     memory.append({"role": "user", "content": seed_user})
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + last_n_msgs(5)
 
     while True:
-        resp = cerebras_call_model(messages)
+        safe_messages = normalize_messages_for_api(messages)
+        resp = cerebras_call_model(safe_messages)
         print(json.dumps(resp, indent=2, ensure_ascii=False))
         choice = resp["choices"][0]["message"]
         content = choice.get("content", "") or ""
@@ -397,6 +430,10 @@ def thinker_loop(seed_user: str, iterations: int = 10):
             memory.append(
                 {"role": "assistant", "content": json.dumps(parsed, ensure_ascii=False)}
             )
+            try:
+                supabase.table("thoughts").insert({"text": json.dumps(parsed, ensure_ascii=False)}).execute()
+            except Exception:
+                pass
             action = parsed.get("action", "").strip()
             if action in (
                 "read_thoughts",
@@ -405,12 +442,6 @@ def thinker_loop(seed_user: str, iterations: int = 10):
                 "language_interpretator",
                 "fetch_news",
             ):
-                note_text = (parsed.get("note") or "").strip()[:120]
-                if note_text:
-                    try:
-                        supabase.table("thoughts").insert({"text": note_text}).execute()
-                    except Exception:
-                        pass
                 args = {}
                 if action == "write_thoughts":
                     args["text"] = (
