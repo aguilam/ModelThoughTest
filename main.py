@@ -359,37 +359,53 @@ def call_local_function(fname: str, args: Dict):
     return f"unknown_function:{fname}"
 
 def normalize_messages_for_api(msgs: List[Dict]) -> List[Dict]:
-    out = []
+    out: List[Dict] = []
     for m in msgs:
         mm = dict(m) 
+
         role = mm.get("role", "")
-        if role == "function":
-            mm["role"] = "tool"
-        if mm.get("role") not in {"system", "user", "assistant", "tool"}:
-            mm["role"] = "assistant"
+        if role == "function": 
+            role = "tool"
+        if role not in {"system", "user", "assistant", "tool"}:
+            role = "assistant"
+        mm["role"] = role
+
+        mm["content"] = str(mm.get("content", "") or "")
 
         if mm["role"] == "tool":
-            mm["content"] = str(mm.get("content", "") or "")
-
+            tool_val = mm.get("tool")
             tool_name = None
-            if isinstance(mm.get("tool"), dict):
-                tool_name = mm["tool"].get("name")
+            existing_id = None
+
+            if isinstance(tool_val, dict):
+                tool_name = tool_val.get("name") or tool_val.get("tool_name")
+                existing_id = tool_val.get("tool_call_id")
             if not tool_name:
                 tool_name = mm.pop("name", None) or mm.get("name")
 
             if not tool_name:
                 tool_name = "tool"
 
-            existing_id = None
-            if isinstance(mm.get("tool"), dict):
-                existing_id = mm["tool"].get("tool_call_id")
             tool_call_id = existing_id or str(uuid.uuid4())
-
-            mm["tool"] = {"name": str(tool_name), "tool_call_id": tool_call_id}
+            mm["tool"] = {"name": str(tool_name), "tool_call_id": str(tool_call_id)}
+            mm.pop("name", None)
+        else:
+            if "tool" in mm:
+                mm.pop("tool", None)
             mm.pop("name", None)
 
         out.append(mm)
+
     return out
+
+def validate_messages_for_cerebras(msgs: List[Dict]):
+    for i, m in enumerate(msgs):
+        if m.get("role") == "tool":
+            t = m.get("tool")
+            if not isinstance(t, dict):
+                raise ValueError(f"message[{i}] role=tool but tool is not dict")
+            if not t.get("name") or not t.get("tool_call_id"):
+                raise ValueError(f"message[{i}] tool missing name or tool_call_id: {t}")
 
 def thinker_loop(seed_user: str, iterations: int = 10):
     memory.append({"role": "user", "content": seed_user})
@@ -397,6 +413,11 @@ def thinker_loop(seed_user: str, iterations: int = 10):
 
     while True:
         safe_messages = normalize_messages_for_api(messages)
+        try:
+            validate_messages_for_cerebras(safe_messages)
+        except ValueError as e:
+            print("Invalid messages:", e)
+            raise        
         resp = cerebras_call_model(safe_messages)
         print(json.dumps(resp, indent=2, ensure_ascii=False))
         choice = resp["choices"][0]["message"]
