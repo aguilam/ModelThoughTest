@@ -439,9 +439,8 @@ def thinker_loop(seed_user: str, iterations: int = 10):
             )
             res = call_local_function(fname, args)
             memory.append({
-                "role": "tool",
-                "tool": {"name": fname, "tool_call_id": str(uuid.uuid4())},
-                "content": str(res)
+                "role": "assistant",
+                "content": {"name": fname, content: str(res)}
             })            
             messages = [{"role": "system", "content": SYSTEM_PROMPT}] + last_n_msgs(5)
             continue
@@ -481,9 +480,8 @@ def thinker_loop(seed_user: str, iterations: int = 10):
                     )
                 res = call_local_function(action, args)
                 memory.append({
-                    "role": "tool",
-                    "tool": {"name": action, "tool_call_id": str(uuid.uuid4())},
-                    "content": str(res)
+                    "role": "assistant",
+                    "content": {"name": action, content: str(res)}
                 })               
             next_q = (
                 parsed.get("next_q") or "Continue generating a short note and question."
