@@ -310,10 +310,24 @@ def cerebras_call_model(
         top_p=1,
         stream=False,
     )
-    completion_json = completion.model_dump_json()
-    if completion_json.status_code != 200:
-        raise ValueError(f"API error: {completion_json.status_code}")
-    return completion_json
+
+    if hasattr(completion, "model_dump"):
+        return completion.model_dump()
+
+    if hasattr(completion, "model_dump_json"):
+        try:
+            return json.loads(completion.model_dump_json())
+        except Exception as e:
+            raise RuntimeError(f"Failed parsing model_dump_json: {e}")
+
+    if hasattr(completion, "raise_for_status") and hasattr(completion, "json"):
+        completion.raise_for_status()
+        return completion.json()
+
+    try:
+        return json.loads(str(completion))
+    except Exception:
+        raise RuntimeError("Unknown completion type; cannot convert to dict")
 
 
 def safe_parse_json_line(text: str):
