@@ -306,8 +306,8 @@ def cerebras_call_model(
         model=model,
         max_completion_tokens=2048,
         temperature=0.8,
-        tools=FUNCTIONS,  
-        tool_choice="auto",  
+        #tools=FUNCTIONS,  
+        #tool_choice="auto",  
         top_p=1,
         stream=False,
     )
