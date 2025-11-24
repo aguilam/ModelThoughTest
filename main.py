@@ -430,7 +430,7 @@ def thinker_loop(seed_user: str, iterations: int = 10):
                 res = call_local_function(action, args)
                 memory.append({
                     "role": "tool",
-                    "tool": {"name": fname, "tool_call_id": str(uuid.uuid4())},
+                    "tool": {"name": action, "tool_call_id": str(uuid.uuid4())},
                     "content": str(res)
                 })               
             next_q = (
